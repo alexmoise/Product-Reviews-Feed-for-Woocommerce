@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name: Product Reviews Feed for Woocommerce
- * Plugin URI: https://github.com/alexmoise/Product-Reviews-Feed-for-Woocommerce
+ * Plugin URI: 
  * Description: A plugin that generates the Product Reviews Feed necessary as a first step for displaying product reviews in Google Shopping Ads.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Alex Moise
  * Author URI: https://moise.pro
  */
@@ -93,7 +93,7 @@ echo '
 		</products>
 	</review>';
 }
-// 
+// Add the feed link to plugin action links for convenience
 add_action( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'mos_plugin_action_links' );
 function mos_plugin_action_links( $moslinks ) {
 	$moslinks = array_merge( $moslinks, array(
