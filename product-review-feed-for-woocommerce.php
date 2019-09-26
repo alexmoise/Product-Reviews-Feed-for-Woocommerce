@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Product Reviews Feed for Woocommerce
- * Plugin URI: 
+ * Plugin URI: https://github.com/alexmoise/Product-Reviews-Feed-for-Woocommerce
  * Description: A plugin that generates the Product Reviews Feed necessary as a first step for displaying product reviews in Google Shopping Ads.
  * Version: 1.0.2
  * Author: Alex Moise
