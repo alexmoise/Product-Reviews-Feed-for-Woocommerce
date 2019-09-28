@@ -3,7 +3,7 @@
  * Plugin Name: Product Reviews Feed for Woocommerce
  * Plugin URI: https://github.com/alexmoise/Product-Reviews-Feed-for-Woocommerce
  * Description: A plugin that generates the Product Reviews Feed necessary as a first step for displaying product reviews in Google Shopping Ads.
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: Alex Moise
  * Author URI: https://moise.pro
  */
@@ -14,14 +14,14 @@ if ( ! defined( 'ABSPATH' ) ) {	exit(0);}
 // global $wp_rewrite;
 // $wp_rewrite->flush_rules();
 
-// Add the feed in the first place:
-add_action('init', 'mos_add_the_PRfeed');
-function mos_add_the_PRfeed(){
-        add_feed('product-reviews', 'mos_create_the_PRfeed');
+// === Main function: add the feed in the first place:
+add_action('init', 'mos_add_the_product_feed');
+function mos_add_the_product_feed(){
+        add_feed('product-reviews', 'mos_create_the_product_feed');
 }
 
 // Then create the feed:
-function mos_create_the_PRfeed(){
+function mos_create_the_product_feed(){
 // Set the header, so the feed doesn't get downloaded
 header( 'Content-Type: application/rss+xml; charset=' . get_option( 'blog_charset' ), true );
 // Then echo the feed head
@@ -37,10 +37,10 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
     <reviews>';
 // Get the products IDs
 $product_ids = get_posts( array(
-		'post_type' => 'product',
-		'numberposts' => -1,
-		'post_status' => 'publish',
-		'fields' => 'ids',
+	'post_type' => 'product',
+	'numberposts' => -1,
+	'post_status' => 'publish',
+	'fields' => 'ids',
 ) );
 // Then for each product ID get some info and the comments
 foreach ( $product_ids as $prod_id ) {
@@ -59,7 +59,7 @@ foreach ( $product_ids as $prod_id ) {
 			$comm_date = ($comment->comment_date );
 			$comm_url = $prod_url.'#comment-'.$comm_id;
 			// Finally call the helper functio to output one review at a time
-			mos_output_PRfeed ($prod_id, $prod_title, $prod_url, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content);
+			mos_output_feed_item ($prod_id, $prod_title, $prod_url, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content);
 		}
 	}
 	// Unset the comments, otherwise it will be picked up at next iteration
@@ -71,8 +71,9 @@ echo '
 </feed>
 ';
 }
-// Helper function to output each review
-function mos_output_PRfeed ($prod_id, $prod_title, $prod_url, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content) {
+
+// === Helper function to output each review
+function mos_output_feed_item ($prod_id, $prod_title, $prod_url, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content) {
 echo '
 	<review>
 		<review_id>'.$comm_id.'</review_id>
@@ -93,7 +94,70 @@ echo '
 		</products>
 	</review>';
 }
-// Add the feed link to plugin action links for convenience
+
+// === GTIN management functions below:
+// Add GTIN field in simple product inventory options
+add_action('woocommerce_product_options_sku', 'mos_add_gtin' );
+function mos_add_gtin(){
+	echo '<div id="gtin_parent_attr" class="options_group" style="width: 100%;">';
+	woocommerce_wp_text_input( array(
+		'id'          => '_gtin',
+		'label'       => __('GTIN', 'woocommerce' ),
+		'placeholder' => __('Enter GTIN here.', 'woocommerce' ),
+		'desc_tip'    => true,
+		'description' => __('Used by Reviews Feed for Woocommerce plugin. Enter the EAN, UPC, ISBN that will appear in the feed.', 'woocommerce' )
+	) );
+	echo '</div>';
+}
+// Add GTIN field in product variations options pricing
+add_action( 'woocommerce_variation_options_pricing', 'mos_add_variation_gtin', 10, 3 );
+function mos_add_variation_gtin( $loop, $variation_data, $variation ){
+	echo '<div id="gtin_attr" class="options_group" style="display:inline-block; width:100%;">';
+	woocommerce_wp_text_input( array(
+		'id'          => '_gtin['.$loop.']',
+		'label'       => __('GTIN', 'woocommerce' ),
+		'placeholder' => __('Enter GTIN here', 'woocommerce' ),
+		'description' => __('Used by Reviews Feed for Woocommerce plugin. Enter the EAN, UPC, ISBN that will appear in the feed.', 'woocommerce' ),
+		'value'       => get_post_meta( $variation->ID, '_gtin', true )
+	) );
+	echo '</div><style>div#gtin_attr input { width: 100%; }</style>';
+}
+// Hide GTIN field in parent product if product is variable - AND display a hint about this!
+add_action ('woocommerce_product_options_sku', 'mos_hide_gtin_field');
+function mos_hide_gtin_field() {
+	global $post;
+	$product = wc_get_product( $post->ID );
+	$prod_type = $product->get_type();
+	if( $prod_type == 'variable' ) {
+		echo '<style>div#gtin_parent_attr { display: none; }</style>
+		<p class="form-field"><label>GTIN</label>This is a variable product, please enter GTIN in each variation!</p>';
+	} else {
+		echo '<style>div#gtin_parent_attr { display: inline-block; }</style>';
+	}
+}
+// Save GTIN field value for simple product inventory options
+add_action('woocommerce_admin_process_product_object', 'mos_product_save_gtin', 10, 1 );
+function mos_product_save_gtin( $product ){
+    if( isset($_POST['_gtin']) )
+        $product->update_meta_data( '_gtin', sanitize_text_field($_POST['_gtin']) );
+}
+// Save GTIN field value from product variations options pricing
+add_action( 'woocommerce_save_product_variation', 'mos_variation_item_save_gtin', 10, 2 );
+function mos_variation_item_save_gtin( $variation_id, $i ){
+    if( isset($_POST['_gtin'][$i]) ){
+        update_post_meta( $variation_id, '_gtin', sanitize_text_field($_POST['_gtin'][$i]) );
+    }
+}
+// Save GTIN to order items (and display it on admin orders)
+add_filter( 'woocommerce_checkout_create_order_line_item', 'mos_order_item_save_gtin', 10, 4 );
+function mos_order_item_save_gtin( $item, $cart_item_key, $cart_item, $order ) {
+    if( $value = $cart_item['data']->get_meta('_gtin') ) {
+        $item->update_meta_data( '_gtin', esc_attr( $value ) );
+    }
+    return $item_qty;
+}
+
+// === Add the feed link to plugin action links, for convenience
 add_action( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'mos_plugin_action_links' );
 function mos_plugin_action_links( $moslinks ) {
 	$moslinks = array_merge( $moslinks, array(
