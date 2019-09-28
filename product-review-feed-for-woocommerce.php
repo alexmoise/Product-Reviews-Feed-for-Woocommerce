@@ -3,7 +3,7 @@
  * Plugin Name: Product Reviews Feed for Woocommerce
  * Plugin URI: https://github.com/alexmoise/Product-Reviews-Feed-for-Woocommerce
  * Description: A plugin that generates the Product Reviews Feed necessary as a first step for displaying product reviews in Google Shopping Ads.
- * Version: 1.0.5
+ * Version: 1.0.6
  * Author: Alex Moise
  * Author URI: https://moise.pro
  */
@@ -59,9 +59,10 @@ foreach ( $product_ids as $prod_id ) {
 			$comm_author = ($comment->comment_author);
 			$comm_content = ($comment->comment_content);
 			$comm_date = ($comment->comment_date );
+			$comm_date_ISO = date("c", strtotime($comm_date));
 			$comm_url = $prod_url.'#comment-'.$comm_id;
 			// Finally call the helper functio to output one review at a time
-			mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content);
+			mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date_ISO, $comm_url, $comm_content);
 		}
 	}
 	// Unset the comments, otherwise it will be picked up at next iteration
@@ -74,14 +75,14 @@ echo '
 ';
 }
 // Helper function to output each review
-function mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content) {
+function mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date_ISO, $comm_url, $comm_content) {
 echo '
 	<review>
 		<review_id>'.$comm_id.'</review_id>
 		<reviewer>
 			<name>'.$comm_author.'</name>
 		</reviewer>
-		<review_timestamp>'.$comm_date.'</review_timestamp>
+		<review_timestamp>'.$comm_date_ISO.'</review_timestamp>
 		<content>'.$comm_content.'</content>
 		<review_url type="singleton">'.$comm_url.'</review_url>
 		<ratings>
