@@ -3,7 +3,7 @@
  * Plugin Name: Product Reviews Feed for Woocommerce
  * Plugin URI: https://github.com/alexmoise/Product-Reviews-Feed-for-Woocommerce
  * Description: A plugin that generates the Product Reviews Feed necessary as a first step for displaying product reviews in Google Shopping Ads.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: Alex Moise
  * Author URI: https://moise.pro
  */
@@ -19,7 +19,6 @@ add_action('init', 'mos_add_the_product_feed');
 function mos_add_the_product_feed(){
         add_feed('product-reviews', 'mos_create_the_product_feed');
 }
-
 // Then create the feed:
 function mos_create_the_product_feed(){
 // Set the header, so the feed doesn't get downloaded
@@ -44,6 +43,9 @@ $product_ids = get_posts( array(
 ) );
 // Then for each product ID get some info and the comments
 foreach ( $product_ids as $prod_id ) {
+	$product = wc_get_product( $prod_id );
+	$prod_sku = $product->get_sku();
+	$prod_gtin = $product->get_meta( '_gtin' );
 	$prod_title = get_the_title( $prod_id );
 	$prod_url = get_permalink( $prod_id );
 	$comments = get_comments('post_id='.$prod_id);
@@ -59,7 +61,7 @@ foreach ( $product_ids as $prod_id ) {
 			$comm_date = ($comment->comment_date );
 			$comm_url = $prod_url.'#comment-'.$comm_id;
 			// Finally call the helper functio to output one review at a time
-			mos_output_feed_item ($prod_id, $prod_title, $prod_url, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content);
+			mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content);
 		}
 	}
 	// Unset the comments, otherwise it will be picked up at next iteration
@@ -71,9 +73,8 @@ echo '
 </feed>
 ';
 }
-
-// === Helper function to output each review
-function mos_output_feed_item ($prod_id, $prod_title, $prod_url, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content) {
+// Helper function to output each review
+function mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date, $comm_url, $comm_content) {
 echo '
 	<review>
 		<review_id>'.$comm_id.'</review_id>
@@ -88,6 +89,14 @@ echo '
 		</ratings>
 		<products>
 			<product>
+				<product_ids>
+					<gtins>
+						<gtin>'.$prod_gtin.'</gtin>
+					</gtins>
+					<skus>
+						<sku>'.$prod_sku.'</sku>
+					</skus>
+				</product_ids>
 				<product_name>'.$prod_title.'</product_name>
 				<product_url>'.$prod_url.'</product_url>
 			</product>
@@ -122,19 +131,7 @@ function mos_add_variation_gtin( $loop, $variation_data, $variation ){
 	) );
 	echo '</div><style>div#gtin_attr input { width: 100%; }</style>';
 }
-// Hide GTIN field in parent product if product is variable - AND display a hint about this!
-add_action ('woocommerce_product_options_sku', 'mos_hide_gtin_field');
-function mos_hide_gtin_field() {
-	global $post;
-	$product = wc_get_product( $post->ID );
-	$prod_type = $product->get_type();
-	if( $prod_type == 'variable' ) {
-		echo '<style>div#gtin_parent_attr { display: none; }</style>
-		<p class="form-field"><label>GTIN</label>This is a variable product, please enter GTIN in each variation!</p>';
-	} else {
-		echo '<style>div#gtin_parent_attr { display: inline-block; }</style>';
-	}
-}
+
 // Save GTIN field value for simple product inventory options
 add_action('woocommerce_admin_process_product_object', 'mos_product_save_gtin', 10, 1 );
 function mos_product_save_gtin( $product ){
@@ -156,6 +153,30 @@ function mos_order_item_save_gtin( $item, $cart_item_key, $cart_item, $order ) {
     }
     return $item_qty;
 }
+/* 
+// Woocommerce does NOT store reviews per variation - but GTINs MUST be assigned to variations - so we have a situation here.
+// For the moment we'll fall back doing the feed only for non-variable products, ehh
+// ... BUT we'll need these later when we'll use reviews per variation
+// *****
+// Hide GTIN field in parent product if product is variable - AND display a hint about this!
+add_action ('woocommerce_product_options_sku', 'mos_hide_gtin_field');
+function mos_hide_gtin_field() {
+	global $post;
+	$product = wc_get_product( $post->ID );
+	$prod_type = $product->get_type();
+	if( $prod_type == 'variable' ) {
+		echo '<style>div#gtin_parent_attr { display: none; }</style>
+		<p class="form-field"><label>GTIN</label>This is a variable product, please enter GTIN in each variation!</p>';
+	} else {
+		echo '<style>div#gtin_parent_attr { display: inline-block; }</style>';
+	}
+}
+// The quick way to get all variation IDs:
+if( $product->get_type() == 'variable' ) { 
+	$children_ids = $product->get_children(); 
+	echo 'Children:<pre>'; print_r($children_ids); echo '</pre>';
+}
+*/
 
 // === Add the feed link to plugin action links, for convenience
 add_action( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'mos_plugin_action_links' );
