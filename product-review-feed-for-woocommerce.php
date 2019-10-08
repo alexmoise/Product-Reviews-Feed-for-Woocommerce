@@ -3,7 +3,7 @@
  * Plugin Name: Product Reviews Feed for Woocommerce
  * Plugin URI: https://github.com/alexmoise/Product-Reviews-Feed-for-Woocommerce
  * Description: A plugin that generates the Product Reviews Feed necessary as a first step for displaying product reviews in Google Shopping Ads.
- * Version: 1.0.6
+ * Version: 1.0.7
  * Author: Alex Moise
  * Author URI: https://moise.pro
  */
@@ -48,6 +48,7 @@ foreach ( $product_ids as $prod_id ) {
 	$prod_gtin = $product->get_meta( '_gtin' );
 	$prod_title = get_the_title( $prod_id );
 	$prod_url = get_permalink( $prod_id );
+	$prod_brand = get_bloginfo("name"); // Add & use a per-product field here later on. Only in parent product this time, because variations are children of it.
 	$comments = get_comments('post_id='.$prod_id);
 	// Then only if there are comments proceed to get them all
 	if ( $comments ) {
@@ -56,13 +57,13 @@ foreach ( $product_ids as $prod_id ) {
 			$comm_rating = get_comment_meta( $comment->comment_ID, 'rating', true );
 			if ( !$comm_rating ) {break;}
 			$comm_id = ($comment->comment_ID);
-			$comm_author = ($comment->comment_author);
+			$comm_author = preg_split('/[. _]/', $comment->comment_author);
 			$comm_content = ($comment->comment_content);
 			$comm_date = ($comment->comment_date );
 			$comm_date_ISO = date("c", strtotime($comm_date));
 			$comm_url = $prod_url.'#comment-'.$comm_id;
 			// Finally call the helper functio to output one review at a time
-			mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date_ISO, $comm_url, $comm_content);
+			mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_brand, $prod_gtin, $comm_rating, $comm_id, $comm_author[0], $comm_date_ISO, $comm_url, $comm_content);
 		}
 	}
 	// Unset the comments, otherwise it will be picked up at next iteration
@@ -75,7 +76,7 @@ echo '
 ';
 }
 // Helper function to output each review
-function mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date_ISO, $comm_url, $comm_content) {
+function mos_output_feed_item ($prod_id, $prod_title, $prod_url, $prod_sku, $prod_brand, $prod_gtin, $comm_rating, $comm_id, $comm_author, $comm_date_ISO, $comm_url, $comm_content) {
 echo '
 	<review>
 		<review_id>'.$comm_id.'</review_id>
@@ -97,6 +98,9 @@ echo '
 					<skus>
 						<sku>'.$prod_sku.'</sku>
 					</skus>
+					<brands>
+						<brand>'.$prod_brand.'</brand>
+					</brands>
 				</product_ids>
 				<product_name>'.$prod_title.'</product_name>
 				<product_url>'.$prod_url.'</product_url>
@@ -113,7 +117,7 @@ function mos_add_gtin(){
 	woocommerce_wp_text_input( array(
 		'id'          => '_gtin',
 		'label'       => __('GTIN', 'woocommerce' ),
-		'placeholder' => __('Enter GTIN here.', 'woocommerce' ),
+		'placeholder' => __('Enter GTIN here', 'woocommerce' ),
 		'desc_tip'    => true,
 		'description' => __('Used by Reviews Feed for Woocommerce plugin. Enter the EAN, UPC, ISBN that will appear in the feed.', 'woocommerce' )
 	) );
